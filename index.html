@@ -1,9 +1,88 @@
 <!DOCTYPE html>
-<html>
-    <head>
-        <title>Example</title>
-    </head>
-    <body>
-        <p>This is an example of a simple HTML page with one paragraph.</p>
-    </body>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gerenciador Supabase</title>
+    <style>
+        body { font-family: sans-serif; margin: 20px; background-color: #f4f4f9; }
+        .container { max-width: 800px; margin: auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        h2 { color: #333; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { border: 1px solid #ddd; padding: 10px; text-align: left; }
+        th { background-color: #007bff; color: white; }
+        button { padding: 8px 12px; cursor: pointer; border: none; border-radius: 4px; }
+        .btn-add { background-color: #28a745; color: white; }
+        .btn-del { background-color: #dc3545; color: white; }
+        .form-group { margin-bottom: 10px; }
+        input { width: 100%; padding: 8px; box-sizing: border-box; }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <div class="container">
+        <h2>Gerenciador de Endereços</h2>
+        <div class="form-group">
+            <input type="text" id="rua" placeholder="Rua">
+            <input type="text" id="posicao" placeholder="Posição">
+            <button class="btn-add" onclick="addEndereco()">Adicionar Endereço</button>
+        </div>
+        <table id="tabelaEndereco">
+            <thead><tr><th>ID</th><th>Rua</th><th>Posição</th><th>Ações</th></tr></thead>
+            <tbody></tbody>
+        </table>
+    </div>
+
+    <script>
+        // Declaramos a variável globalmente
+        let supabase;
+
+        window.addEventListener('load', () => {
+            // Inicializa o cliente usando a config injetada pelo Tampermonkey
+            supabase = supabase.createClient(
+                window.SUPABASE_CONFIG.url, 
+                window.SUPABASE_CONFIG.key
+            );
+            
+            console.log("Supabase inicializado com sucesso!");
+            
+            // Carrega os dados após a inicialização
+            fetchEnderecos();
+        });
+
+        async function fetchEnderecos() {
+            if (!supabase) return; // Segurança caso a função rode antes do load
+            const { data, error } = await supabase.from('endereco').select('*');
+            if (error) console.error(error);
+            else renderTable(data);
+        }
+
+        async function addEndereco() {
+            if (!supabase) return;
+            const rua = document.getElementById('rua').value;
+            const posicao = document.getElementById('posicao').value;
+            await supabase.from('endereco').insert([{ rua, posicao }]);
+            fetchEnderecos();
+        }
+
+        async function deleteEndereco(id) {
+            if (!supabase) return;
+            await supabase.from('endereco').delete().eq('id', id);
+            fetchEnderecos();
+        }
+
+        function renderTable(data) {
+            const tbody = document.querySelector('#tabelaEndereco tbody');
+            tbody.innerHTML = '';
+            data.forEach(item => {
+                tbody.innerHTML += `<tr>
+                    <td>${item.id}</td>
+                    <td>${item.rua}</td>
+                    <td>${item.posicao}</td>
+                    <td><button class="btn-del" onclick="deleteEndereco(${item.id})">Excluir</button></td>
+                </tr>`;
+            });
+        }
+    </script>
+</body>
 </html>
