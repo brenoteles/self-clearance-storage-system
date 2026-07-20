@@ -2,87 +2,725 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gerenciador Supabase</title>
+    <title>Sistema WMS - Logística</title>
     <style>
-        body { font-family: sans-serif; margin: 20px; background-color: #f4f4f9; }
-        .container { max-width: 800px; margin: auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-        h2 { color: #333; }
-        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-        th, td { border: 1px solid #ddd; padding: 10px; text-align: left; }
-        th { background-color: #007bff; color: white; }
-        button { padding: 8px 12px; cursor: pointer; border: none; border-radius: 4px; }
-        .btn-add { background-color: #28a745; color: white; }
-        .btn-del { background-color: #dc3545; color: white; }
-        .form-group { margin-bottom: 10px; }
-        input { width: 100%; padding: 8px; box-sizing: border-box; }
+        :root {
+            --primary: #004085;
+            --secondary: #007bff;
+            --success: #28a745;
+            --danger: #dc3545;
+            --bg-color: #f4f7f6;
+            --text-dark: #333;
+            --text-light: #fff;
+            --sidebar-width: 250px;
+        }
+
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; background-color: var(--bg-color); display: flex; height: 100vh; overflow: hidden; }
+
+        /* ====== MENU LATERAL ====== */
+        .sidebar { width: var(--sidebar-width); background-color: var(--primary); color: var(--text-light); display: flex; flex-direction: column; box-shadow: 2px 0 5px rgba(0,0,0,0.1); z-index: 10; }
+        .sidebar h2 { text-align: center; padding: 20px 0; margin: 0; background-color: rgba(0,0,0,0.2); border-bottom: 1px solid rgba(255,255,255,0.1); }
+        .nav-btn { background: none; border: none; color: #ccc; padding: 15px 20px; text-align: left; font-size: 16px; cursor: pointer; border-bottom: 1px solid rgba(255,255,255,0.05); transition: all 0.3s; }
+        .nav-btn:hover, .nav-btn.active { background-color: var(--secondary); color: var(--text-light); padding-left: 25px; }
+
+        /* ====== CONTEÚDO PRINCIPAL ====== */
+        .main-content { flex-grow: 1; padding: 30px; overflow-y: auto; position: relative; }
+        .page { display: none; background: white; padding: 25px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); max-width: 1200px; margin: 0 auto; }
+        .page.active { display: block; animation: fadeIn 0.3s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* ====== HEADER E TABELAS ====== */
+        .page-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #eee; padding-bottom: 10px; margin-bottom: 20px; gap: 10px; }
+        .page-header h2 { margin: 0; color: var(--text-dark); flex-shrink: 0; }
+        table { width: 100%; border-collapse: collapse; font-size: 14px; margin-top: 10px; }
+        th, td { border: 1px solid #ddd; padding: 12px 10px; text-align: left; }
+        th { background-color: var(--secondary); color: white; }
+        
+        /* ====== BOTÕES E INPUTS ====== */
+        button { padding: 10px 15px; cursor: pointer; border: none; border-radius: 4px; font-weight: bold; }
+        .btn-add { background-color: var(--success); color: white; }
+        .btn-cancel { background-color: var(--danger); color: white; }
+        input, select { padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+        .btn-load-more { width: 100%; margin-top: 10px; background: #e0e0e0; color: #333; padding: 12px; border-radius: 4px; transition: 0.2s; }
+        .btn-load-more:hover { background: #d0d0d0; }
+
+        /* ====== AUTOCOMPLETE ====== */
+        .autocomplete-wrapper { position: relative; width: 100%; }
+        .autocomplete-list { position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid #ccc; max-height: 200px; overflow-y: auto; z-index: 9999; border-radius: 0 0 4px 4px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); display: none; }
+        .autocomplete-item { padding: 10px; cursor: pointer; border-bottom: 1px solid #eee; font-size: 13px; }
+        .autocomplete-item:hover { background: #007bff; color: white; }
+        .autocomplete-empty { padding: 10px; color: #777; font-size: 13px; font-style: italic; }
+
+        /* ====== MODAIS ====== */
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center; }
+        .modal-overlay.active { display: flex; animation: fadeIn 0.2s; }
+        .modal-content { background: white; padding: 25px; border-radius: 8px; width: 100%; max-width: 500px; box-shadow: 0 5px 15px rgba(0,0,0,0.3); overflow: visible; }
+        .modal-content h3 { margin-top: 0; color: var(--primary); border-bottom: 1px solid #eee; padding-bottom: 10px; }
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px; }
+        .form-grid.single { grid-template-columns: 1fr; }
+        .form-grid input, .form-grid select { width: 100%; }
+        .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
+
+        /* ====== RETIRADA E FEEDBACK ====== */
+        #secao_item_retirada { display: none; margin-top: 20px; padding: 25px; border: 1px solid #e0e0e0; border-radius: 8px; background-color: #fafafa; }
+        #feedback_retirada { margin-top: 20px; padding: 15px; border-radius: 6px; display: none; font-weight: 600; border: 1px solid transparent; }
+        .input-field { width: 100%; padding: 15px; font-size: 18px; border: 1px solid #ccc; border-radius: 6px; transition: border-color 0.2s; }
+        .input-field:focus { border-color: var(--secondary); outline: none; box-shadow: 0 0 5px rgba(0,123,255,0.2); }
+        
+        .item-list-row { padding: 8px; border-bottom: 1px solid #eee; font-size: 14px; }
+        .item-list-row:last-child { border-bottom: none; }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
 </head>
 <body>
-    <div class="container">
-        <h2>Gerenciador de Endereços</h2>
-        <div class="form-group">
-            <input type="text" id="rua" placeholder="Rua">
-            <input type="text" id="posicao" placeholder="Posição">
-            <button class="btn-add" onclick="addEndereco()">Adicionar Endereço</button>
-        </div>
-        <table id="tabelaEndereco">
-            <thead><tr><th>ID</th><th>Rua</th><th>Posição</th><th>Ações</th></tr></thead>
-            <tbody></tbody>
-        </table>
+
+    <div class="sidebar">
+        <h2>Painel WMS</h2>
+        <button class="nav-btn active" onclick="navegar('inicio', this)">Início</button>
+        <button class="nav-btn" onclick="navegar('locais', this)">Locais</button>
+        <button class="nav-btn" onclick="navegar('enderecos', this)">Endereços</button>
+        <button class="nav-btn" onclick="navegar('paletes', this)">Paletes</button>
+        <button class="nav-btn" onclick="navegar('caixas', this)">Caixas</button>
+        <button class="nav-btn" onclick="navegar('armazenamento', this)">Armazenamento</button>
+        <button class="nav-btn" onclick="navegar('remessas', this)">Remessas</button>
+        <button class="nav-btn" onclick="navegar('retirada', this)">Retirar da Posição</button>
     </div>
 
-    <script>
-        // Declaramos a variável globalmente
-        let supabase;
+    <div class="main-content">
+        <!-- TELA: INÍCIO -->
+        <div id="inicio" class="page active">
+            <div class="page-header"><h2>Bem-vindo ao Sistema WMS</h2></div>
+            <p>Este sistema opera com renderização do lado do servidor (Server-Side) para suportar grandes volumes de dados.</p>
+        </div>
 
-        window.addEventListener('load', () => {
-            // Inicializa o cliente usando a config injetada pelo Tampermonkey
-            supabase = supabase.createClient(
-                window.SUPABASE_CONFIG.url, 
-                window.SUPABASE_CONFIG.key
-            );
+        <!-- TELA: LOCAIS -->
+        <div id="locais" class="page">
+            <div class="page-header">
+                <h2>Gestão de Locais</h2>
+                <button class="btn-add" onclick="abrirModal('modalLocal')">+ Novo Local</button>
+            </div>
+            <table id="tabelaLocal">
+                <thead><tr><th>ID</th><th>Nome do Local</th></tr></thead>
+                <tbody></tbody>
+            </table>
+        </div>
+
+        <!-- TELA: ENDEREÇOS -->
+        <div id="enderecos" class="page">
+            <div class="page-header">
+                <h2>Endereços</h2>
+                <button class="btn-add" onclick="abrirModal('modalEndereco')">+ Novo Endereço</button>
+            </div>
+            <table id="tabelaEndereco">
+                <thead>
+                    <tr><th>ID</th><th>Local</th><th>Rua</th><th>Pos.</th><th>Nível</th><th>Ações</th></tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+            <button class="btn-load-more" onclick="carregarMaisEnderecos()">Carregar mais...</button>
+        </div>
+
+        <!-- TELA: PALETES -->
+        <div id="paletes" class="page">
+            <div class="page-header">
+                <h2>Paletes</h2>
+                <button class="btn-add" onclick="abrirModal('modalPalete')">+ Novo Palete</button>
+            </div>
+            <table id="tabelaPalete">
+                <thead><tr><th>ID</th><th>Endereço Vinculado</th><th>Ações</th></tr></thead>
+                <tbody></tbody>
+            </table>
+        </div>
+
+        <!-- TELA: CAIXAS -->
+        <div id="caixas" class="page">
+            <div class="page-header">
+                <h2>Caixas</h2>
+                <input type="text" id="buscaCaixa" placeholder="Pesquisar por ID..." onkeyup="debounceSearch(buscarCaixasBanco)" style="width: 250px;">
+                <button class="btn-add" onclick="abrirModal('modalCaixa')">+ Nova Caixa</button>
+            </div>
+            <table id="tabelaCaixa">
+                <thead><tr><th>ID</th><th>Localização</th><th>Ações</th></tr></thead>
+                <tbody></tbody>
+            </table>
+        </div>
+
+        <!-- TELA: ARMAZENAMENTO -->
+        <div id="armazenamento" class="page">
+            <div class="page-header"><h2>Armazenamento de Remessas</h2></div>
+            <div class="form-group" style="display: grid; grid-template-columns: 1fr; gap:10px;">
+                <input type="text" id="input_caixa_id" placeholder="Escaneie ou digite o ID da Caixa..." onkeydown="if(event.key === 'Enter') verificarCaixa()" style="font-size: 20px; padding: 15px;">
+            </div>
+            <div id="secao_remessa" style="display:none; margin-top: 20px; padding: 20px; border: 2px solid #ccc; border-radius: 8px;">
+                <h3 style="margin-top:0;">Validar Remessa</h3>
+                <input type="text" id="input_remessa_id" placeholder="ID da Remessa..." onkeydown="if(event.key === 'Enter') processarRemessa()" style="font-size: 20px; padding: 15px; width:100%;">
+            </div>
+            <div id="feedback_visual" style="margin-top: 20px; padding: 15px; border-radius: 4px; display: none; font-size: 18px; font-weight: bold;"></div>
+        </div>
+
+        <!-- TELA: REMESSAS -->
+        <div id="remessas" class="page">
+            <div class="page-header">
+                <h2>Consulta de Remessas</h2>
+                <div style="display: flex; gap: 10px; width: 60%;">
+                    <select id="tipoBuscaRemessa" style="width: 150px;">
+                        <option value="tracking">Tracking No.</option>
+                        <option value="caixa">ID da Caixa</option>
+                        <option value="palete">ID do Palete</option>
+                    </select>
+                    <input type="text" id="buscaRemessa" placeholder="Digite para buscar no banco..." onkeyup="debounceSearch(buscarRemessasBanco)" style="flex-grow: 1;">
+                </div>
+            </div>
+            <table id="tabelaRemessas">
+                <thead>
+                    <tr><th>Tracking</th><th>Situação</th><th>Caixa</th><th>Palete/Endereço</th><th>Local</th></tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+
+        <!-- TELA: RETIRAR DA POSIÇÃO -->
+        <div id="retirada" class="page">
+            <div class="page-header"><h2>Retirar do Inventário</h2></div>
+            <div class="form-group" style="margin-bottom: 20px;">
+                <input type="text" id="retirada_container_id" class="input-field" placeholder="Bipe Caixa ou Palete (Ex: caixa-1)..." onkeydown="if(event.key === 'Enter') validarContainerRetirada()">
+            </div>
+            <div id="secao_item_retirada">
+                <h3 style="margin-top:0; color: #555;">Bipe o item para retirar:</h3>
+                <input type="text" id="input_item_retirada" class="input-field" placeholder="Bipe a Remessa ou Caixa..." onkeydown="if(event.key === 'Enter') processarRetirada()">
+            </div>
+            <div id="feedback_retirada"></div>
+        </div>
+
+    </div>
+
+    <!-- ================= MODAL DETALHES UNIFICADA (Paginação e Impressão) ================= -->
+    <div id="modalDetalhes" class="modal-overlay">
+        <div class="modal-content" style="max-width: 600px;">
+            <h3 id="detalhe_titulo">Detalhes</h3>
+            <p style="color: #666; font-size: 14px;"><strong>Observação:</strong> <span id="detalhe_obs"></span></p>
             
-            console.log("Supabase inicializado com sucesso!");
+            <div id="container_conteudo" style="margin-top:15px; border-top: 1px solid #eee; padding-top:10px; max-height: 250px; overflow-y: auto;">
+                <!-- Conteúdo carregado dinamicamente -->
+            </div>
             
-            // Carrega os dados após a inicialização
-            fetchEnderecos();
+            <button id="btn_mais_detalhes" class="btn-load-more" style="display:none;" onclick="buscarConteudoInterno(false)">Carregar mais itens...</button>
+            
+            <div class="modal-actions">
+                <button class="btn-cancel" onclick="fecharModal('modalDetalhes')">Fechar</button>
+                <button class="btn-add" onclick="gerarEtiquetaPDF()">🖨️ Imprimir Etiqueta</button>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- ================= MODAIS DE CADASTRO ================= -->
+    <!-- Modal Local -->
+    <div id="modalLocal" class="modal-overlay">
+        <div class="modal-content">
+            <h3>Cadastrar Novo Local</h3>
+            <div class="form-grid single">
+                <input type="text" id="local_nome" placeholder="Nome do Local">
+            </div>
+            <div class="modal-actions">
+                <button class="btn-cancel" onclick="fecharModal('modalLocal')">Cancelar</button>
+                <button class="btn-add" onclick="addLocal()">Salvar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Endereço -->
+    <div id="modalEndereco" class="modal-overlay">
+        <div class="modal-content">
+            <h3>Cadastrar Novo Endereço</h3>
+            <div class="form-grid single">
+                <div class="autocomplete-wrapper">
+                    <input type="text" id="endereco_local_nome" placeholder="Digite para buscar o Local..." oninput="debounceSearch(() => autoLocal(this.value))">
+                    <input type="hidden" id="endereco_local_id">
+                    <div id="lista_auto_local" class="autocomplete-list"></div>
+                </div>
+            </div>
+            <div class="form-grid">
+                <input type="text" id="endereco_rua" placeholder="Rua">
+                <input type="text" id="endereco_posicao" placeholder="Posição">
+                <input type="text" id="endereco_nivel" placeholder="Nível">
+                <input type="text" id="endereco_obs" placeholder="Observações">
+            </div>
+            <div class="modal-actions">
+                <button class="btn-cancel" onclick="fecharModal('modalEndereco')">Cancelar</button>
+                <button class="btn-add" onclick="addEndereco()">Salvar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Palete -->
+    <div id="modalPalete" class="modal-overlay">
+        <div class="modal-content">
+            <h3>Cadastrar Novo Palete</h3>
+            <div class="form-grid single">
+                <div class="autocomplete-wrapper">
+                    <input type="text" id="palete_endereco_nome" placeholder="Busque a Rua do Endereço..." oninput="debounceSearch(() => autoEndereco(this.value, 'palete_endereco'))">
+                    <input type="hidden" id="palete_endereco_id">
+                    <div id="lista_auto_palete_endereco" class="autocomplete-list"></div>
+                </div>
+                <input type="text" id="palete_obs" placeholder="Observações (Código/Conteúdo)">
+            </div>
+            <div class="modal-actions">
+                <button class="btn-cancel" onclick="fecharModal('modalPalete')">Cancelar</button>
+                <button class="btn-add" onclick="addPalete()">Salvar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Caixa -->
+    <div id="modalCaixa" class="modal-overlay">
+        <div class="modal-content">
+            <h3>Registrar Nova Caixa</h3>
+            <p style="font-size: 12px; color: #666; margin-top:0;">Vincule a um Endereço OU a um Palete (Busque pelo nome ou ID).</p>
+            <div class="form-grid single">
+                
+                <div class="autocomplete-wrapper">
+                    <input type="text" id="caixa_endereco_nome" placeholder="1. Buscar Endereço (Rua)..." oninput="debounceSearch(() => autoEndereco(this.value, 'caixa_endereco'))">
+                    <input type="hidden" id="caixa_endereco_id">
+                    <div id="lista_auto_caixa_endereco" class="autocomplete-list"></div>
+                </div>
+
+                <div class="autocomplete-wrapper">
+                    <input type="text" id="caixa_palete_nome" placeholder="2. OU Buscar Palete (ID)..." oninput="debounceSearch(() => autoPalete(this.value))">
+                    <input type="hidden" id="caixa_palete_id">
+                    <div id="lista_auto_palete" class="autocomplete-list"></div>
+                </div>
+
+                <input type="text" id="caixa_obs" placeholder="Observações (Ex: Eletrônicos)">
+            </div>
+            <div class="modal-actions">
+                <button class="btn-cancel" onclick="fecharModal('modalCaixa')">Cancelar</button>
+                <button class="btn-add" onclick="addCaixa()">Salvar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= SCRIPTS ================= -->
+    <script>
+        let debounceTimer;
+        function debounceSearch(callback, delay = 400) {
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(callback, delay);
+        }
+
+        function navegar(idPagina, botaoClicado) {
+            document.querySelectorAll('.page').forEach(page => page.classList.remove('active'));
+            document.getElementById(idPagina).classList.add('active');
+            document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
+            botaoClicado.classList.add('active');
+        }
+
+        function abrirModal(id) { document.getElementById(id).classList.add('active'); }
+        function fecharModal(id) { document.getElementById(id).classList.remove('active'); }
+
+        let supabaseClient;
+        function initSupabase() {
+            if (window.SUPABASE_CONFIG) {
+                supabaseClient = supabase.createClient(window.SUPABASE_CONFIG.url, window.SUPABASE_CONFIG.key);
+                carregarTudo();
+            }
+        }
+
+        function carregarTudo() {
+            fetchLocais();
+            fetchEnderecos(true);
+            fetchPaletes();
+            buscarCaixasBanco(); 
+            buscarRemessasBanco(); 
+        }
+
+        // ================= SISTEMA DE DETALHES UNIFICADO (PAGINADO) =================
+        let detalheIdAtual = '';
+        let detalheTipoAtual = '';
+        let detalheOffset = 0;
+        const DETALHE_LIMIT = 20;
+
+        function abrirDetalhes(id, titulo, obs) {
+            detalheIdAtual = id; // Armazena o ID exato (ex: 'caixa-1') de forma segura
+            detalheTipoAtual = titulo;
+            
+            document.getElementById('detalhe_titulo').innerText = `${titulo}: ${id}`;
+            document.getElementById('detalhe_obs').innerText = obs || 'Sem observações registradas.';
+            
+            abrirModal('modalDetalhes');
+            buscarConteudoInterno(true);
+        }
+
+        async function buscarConteudoInterno(reset = false) {
+            const container = document.getElementById('container_conteudo');
+            const btnMais = document.getElementById('btn_mais_detalhes');
+            
+            if (reset) {
+                detalheOffset = 0;
+                container.innerHTML = '<div class="item-list-row">Carregando itens...</div>';
+                btnMais.style.display = 'none';
+            }
+
+            let htmlTemp = '';
+            let countRetornado = 0;
+
+            if (detalheTipoAtual === 'Endereço') {
+                const [paletes, caixas] = await Promise.all([
+                    supabaseClient.from('palete').select('id').eq('endereco_id', detalheIdAtual).range(detalheOffset, detalheOffset + DETALHE_LIMIT - 1),
+                    supabaseClient.from('caixa').select('id').eq('endereco_id', detalheIdAtual).range(detalheOffset, detalheOffset + DETALHE_LIMIT - 1)
+                ]);
+                
+                if (paletes.data) {
+                    paletes.data.forEach(p => htmlTemp += `<div class="item-list-row">📦 Palete: ${p.id}</div>`);
+                    countRetornado += paletes.data.length;
+                }
+                if (caixas.data) {
+                    caixas.data.forEach(c => htmlTemp += `<div class="item-list-row">📦 Caixa: ${c.id}</div>`);
+                    countRetornado += caixas.data.length;
+                }
+            } 
+            else if (detalheTipoAtual === 'Palete') {
+                const { data } = await supabaseClient.from('caixa').select('id, obs').eq('palete_id', detalheIdAtual).range(detalheOffset, detalheOffset + DETALHE_LIMIT - 1);
+                if (data) {
+                    data.forEach(c => htmlTemp += `<div class="item-list-row">📦 Caixa: ${c.id} ${c.obs ? `(${c.obs})` : ''}</div>`);
+                    countRetornado += data.length;
+                }
+            } 
+            else if (detalheTipoAtual === 'Caixa') {
+                const { data } = await supabaseClient.from('remessa').select('tracking_number, situacao_aduaneira').eq('caixa_id', detalheIdAtual).range(detalheOffset, detalheOffset + DETALHE_LIMIT - 1);
+                if (data) {
+                    data.forEach(r => htmlTemp += `<div class="item-list-row">📄 Remessa: <strong>${r.tracking_number}</strong> - Situação: ${r.situacao_aduaneira}</div>`);
+                    countRetornado += data.length;
+                }
+            }
+
+            if (reset) container.innerHTML = ''; // Remove mensagem de carregando
+            
+            if (reset && countRetornado === 0) {
+                container.innerHTML = '<div class="item-list-row" style="color:#888;">Nenhum item alocado aqui.</div>';
+            } else {
+                container.innerHTML += htmlTemp;
+            }
+
+            detalheOffset += DETALHE_LIMIT;
+            
+            // Lógica para mostrar/esconder o botão de carregar mais
+            if (countRetornado >= DETALHE_LIMIT) {
+                btnMais.style.display = 'block';
+            } else {
+                btnMais.style.display = 'none';
+            }
+        }
+
+        // ================= IMPRESSÃO ZEBRA / PDF =================
+        async function gerarEtiquetaPDF() {
+            const { jsPDF } = window.jspdf;
+            const id = detalheIdAtual; // Ex: Endereço-1
+            const tipo = detalheTipoAtual; // Ex: Endereço
+
+            // Inicializa PDF (100x50mm)
+            const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: [100, 50] });
+
+            // Gera o código de barras
+            const canvas = document.getElementById('barcodeCanvas');
+            JsBarcode(canvas, id, { format: "CODE128", lineColor: "#000", width: 2, height: 60, displayValue: false });
+            const imgData = canvas.toDataURL("image/png");
+
+            // Lógica para Endereço
+            if (tipo === 'Endereço') {
+                // Busca os dados da posição atual no banco para montar a string
+                const { data } = await supabaseClient
+                    .from('endereco')
+                    .select('rua, posicao, nivel, local(nome)')
+                    .eq('id', id)
+                    .single();
+
+                if (data) {
+                    const posicaoCompleta = `${data.local?.nome || ''} | Rua: ${data.rua} | Pos: ${data.posicao} | Nível: ${data.nivel}`;
+                    
+                    doc.setFontSize(14);
+                    doc.text(id, 50, 10, { align: 'center' }); // Título (ID)
+                    doc.setFontSize(10);
+                    doc.text(posicaoCompleta, 50, 42, { align: 'center' }); // Posição detalhada
+                    doc.addImage(imgData, 'PNG', 10, 15, 80, 20);
+                }
+            } else {
+                // Lógica padrão para Paletes e Caixas
+                doc.setFontSize(16);
+                doc.text(id, 50, 10, { align: 'center' });
+                doc.addImage(imgData, 'PNG', 10, 15, 80, 25);
+            }
+
+            // Abre para impressão
+            window.open(doc.output('bloburl'), '_blank');
+        }
+
+        // ================= AUTOCOMPLETES =================
+        async function autoLocal(termo) {
+            const lista = document.getElementById('lista_auto_local');
+            if (!termo) { lista.style.display = 'none'; return; }
+            const { data } = await supabaseClient.from('local').select('id, nome').ilike('nome', `%${termo}%`).limit(10);
+            lista.innerHTML = data && data.length > 0 
+                ? data.map(i => `<div class="autocomplete-item" onclick="selecionarAuto('endereco_local', '${i.id}', '${i.nome}')">${i.nome} (ID: ${i.id})</div>`).join('')
+                : `<div class="autocomplete-empty">Nenhum local encontrado</div>`;
+            lista.style.display = 'block';
+        }
+
+        async function autoEndereco(termo, prefixoId) {
+            const lista = document.getElementById(`lista_auto_${prefixoId}`);
+            if (!termo) { lista.style.display = 'none'; return; }
+            const { data } = await supabaseClient.from('endereco').select('id, rua, posicao, local(nome)').ilike('rua', `%${termo}%`).limit(10);
+            lista.innerHTML = data && data.length > 0 
+                ? data.map(i => {
+                    const texto = `Rua ${i.rua}, Pos ${i.posicao} - ${i.local?.nome || ''}`;
+                    return `<div class="autocomplete-item" onclick="selecionarAuto('${prefixoId}', '${i.id}', '${texto}')">${texto}</div>`;
+                }).join('')
+                : `<div class="autocomplete-empty">Nenhum endereço encontrado</div>`;
+            lista.style.display = 'block';
+        }
+
+        async function autoPalete(termo) {
+            const lista = document.getElementById('lista_auto_palete');
+            if (!termo) { lista.style.display = 'none'; return; }
+            const termoBusca = termo.startsWith('palete-') ? termo : `palete-${termo}`;
+            const { data } = await supabaseClient.from('palete').select('id, obs').ilike('id', `%${termoBusca}%`).limit(10);
+            lista.innerHTML = data && data.length > 0 
+                ? data.map(i => `<div class="autocomplete-item" onclick="selecionarAuto('caixa_palete', '${i.id}', '${i.id}')">${i.id} - ${i.obs || 'Sem obs'}</div>`).join('')
+                : `<div class="autocomplete-empty">Nenhum palete encontrado</div>`;
+            lista.style.display = 'block';
+        }
+
+        function selecionarAuto(prefixo, id, texto) {
+            document.getElementById(`${prefixo}_id`).value = id;
+            document.getElementById(`${prefixo}_nome`).value = texto;
+            document.getElementById(`lista_auto_${prefixo}`).style.display = 'none';
+        }
+        document.addEventListener('click', (e) => {
+            if(!e.target.closest('.autocomplete-wrapper')) document.querySelectorAll('.autocomplete-list').forEach(l => l.style.display = 'none');
         });
 
-        async function fetchEnderecos() {
-            if (!supabase) return; // Segurança caso a função rode antes do load
-            const { data, error } = await supabase.from('endereco').select('*');
-            if (error) console.error(error);
-            else renderTable(data);
+
+        // ================= GESTÃO DE ENTIDADES =================
+        async function fetchLocais() {
+            const { data } = await supabaseClient.from('local').select('*').order('id', { ascending: false }).limit(50);
+            if(data) document.querySelector('#tabelaLocal tbody').innerHTML = data.map(item => `<tr><td>${item.id}</td><td>${item.nome}</td></tr>`).join('');
+        }
+        async function addLocal() {
+            const nome = document.getElementById('local_nome').value.trim();
+            if (!nome) return;
+            await supabaseClient.from('local').insert([{ nome }]);
+            fecharModal('modalLocal'); document.getElementById('local_nome').value = ''; fetchLocais();
         }
 
+        let offsetEndereco = 0;
+        const LIMIT_ENDERECO = 20;
+        async function fetchEnderecos(reset = false) {
+            if (reset) { offsetEndereco = 0; document.querySelector('#tabelaEndereco tbody').innerHTML = ''; }
+            const { data } = await supabaseClient.from('endereco').select(`id, rua, posicao, nivel, obs, local (nome)`).order('id', { ascending: false }).range(offsetEndereco, offsetEndereco + LIMIT_ENDERECO - 1);
+            if (data) {
+                const tbody = document.querySelector('#tabelaEndereco tbody');
+                data.forEach(item => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `<td>${item.id}</td><td>${item.local?.nome || ''}</td><td>${item.rua}</td><td>${item.posicao}</td><td>${item.nivel}</td>
+                        <td><button class="btn-add" onclick="abrirDetalhes('${item.id}', 'Endereço', '${(item.obs || '').replace(/'/g, "\\'")}')">Detalhar</button></td>`;
+                    tbody.appendChild(tr);
+                });
+                offsetEndereco += LIMIT_ENDERECO;
+            }
+        }
+        function carregarMaisEnderecos() { fetchEnderecos(false); }
         async function addEndereco() {
-            if (!supabase) return;
-            const rua = document.getElementById('rua').value;
-            const posicao = document.getElementById('posicao').value;
-            await supabase.from('endereco').insert([{ rua, posicao }]);
-            fetchEnderecos();
+            const novo = {
+                local_id: document.getElementById('endereco_local_id').value, rua: document.getElementById('endereco_rua').value.trim(),
+                posicao: document.getElementById('endereco_posicao').value.trim(), nivel: document.getElementById('endereco_nivel').value.trim(), obs: document.getElementById('endereco_obs').value.trim()
+            };
+            if (!novo.local_id || !novo.rua) return alert("Local e Rua obrigatórios.");
+            await supabaseClient.from('endereco').insert([novo]);
+            fecharModal('modalEndereco'); fetchEnderecos(true);
         }
 
-        async function deleteEndereco(id) {
-            if (!supabase) return;
-            await supabase.from('endereco').delete().eq('id', id);
-            fetchEnderecos();
+        async function fetchPaletes() {
+            const { data } = await supabaseClient.from('palete').select(`id, obs, endereco (rua, local (nome))`).order('id', { ascending: false }).limit(50);
+            if(data) document.querySelector('#tabelaPalete tbody').innerHTML = data.map(i => {
+                const endStr = i.endereco ? `${i.endereco.local?.nome} - Rua ${i.endereco.rua}` : 'Sem Endereço';
+                return `<tr><td>${i.id}</td><td>${endStr}</td>
+                        <td><button class="btn-add" onclick="abrirDetalhes('${i.id}', 'Palete', '${(i.obs || '').replace(/'/g, "\\'")}')">Detalhar</button></td></tr>`;
+            }).join('');
+        }
+        async function addPalete() {
+            const endereco_id = document.getElementById('palete_endereco_id').value;
+            if(!endereco_id) return alert("Selecione um endereço para o palete.");
+            await supabaseClient.from('palete').insert([{ endereco_id, obs: document.getElementById('palete_obs').value }]);
+            fecharModal('modalPalete'); fetchPaletes();
         }
 
-        function renderTable(data) {
-            const tbody = document.querySelector('#tabelaEndereco tbody');
-            tbody.innerHTML = '';
-            data.forEach(item => {
-                tbody.innerHTML += `<tr>
-                    <td>${item.id}</td>
-                    <td>${item.rua}</td>
-                    <td>${item.posicao}</td>
-                    <td><button class="btn-del" onclick="deleteEndereco(${item.id})">Excluir</button></td>
-                </tr>`;
-            });
+        async function buscarCaixasBanco() {
+            const termo = document.getElementById('buscaCaixa').value.trim();
+            let query = supabaseClient.from('caixa').select(`id, obs, endereco (rua), palete (id)`).order('id', { ascending: false }).limit(50);
+            
+            if(termo) {
+                const termoBusca = termo.startsWith('caixa-') ? termo : `caixa-${termo}`;
+                query = query.ilike('id', `%${termoBusca}%`);
+            }
+
+            const { data } = await query;
+            if(data) document.querySelector('#tabelaCaixa tbody').innerHTML = data.map(item => {
+                let locStr = item.palete ? `Palete #${item.palete.id}` : (item.endereco ? `Rua ${item.endereco.rua}` : 'N/A');
+                return `<tr><td>${item.id}</td><td>${locStr}</td>
+                        <td><button class="btn-add" onclick="abrirDetalhes('${item.id}', 'Caixa', '${(item.obs || '').replace(/'/g, "\\'")}')">Detalhar</button></td></tr>`;
+            }).join('');
         }
+        async function addCaixa() {
+            const endereco_id = document.getElementById('caixa_endereco_id').value;
+            const palete_id = document.getElementById('caixa_palete_id').value;
+            if((endereco_id && palete_id) || (!endereco_id && !palete_id)) return alert("Vincule a UM Endereço OU a UM Palete.");
+            
+            const payload = { obs: document.getElementById('caixa_obs').value };
+            if(endereco_id) payload.endereco_id = endereco_id;
+            if(palete_id) payload.palete_id = palete_id;
+
+            await supabaseClient.from('caixa').insert([payload]);
+            fecharModal('modalCaixa'); buscarCaixasBanco();
+        }
+
+        // ================= REMESSAS E ARMAZENAMENTO =================
+        async function buscarRemessasBanco() {
+            const tipo = document.getElementById('tipoBuscaRemessa').value;
+            const termo = document.getElementById('buscaRemessa').value.trim();
+            let query = supabaseClient.from('remessa').select(`
+                tracking_number, situacao_aduaneira, caixa_id,
+                caixa:caixa_id ( id, palete_id, endereco:endereco_id (rua, local (nome)), palete:palete_id (id, endereco (rua, local (nome))) )
+            `).order('atualizado_em', { ascending: false }).limit(50);
+
+            if (termo) {
+                if (tipo === 'tracking') query = query.ilike('tracking_number', `%${termo}%`);
+                else if (tipo === 'caixa') query = query.eq('caixa_id', termo.startsWith('caixa-') ? termo : `caixa-${termo}`);
+                else if (tipo === 'palete') query = query.eq('caixa.palete_id', termo.startsWith('palete-') ? termo : `palete-${termo}`);
+            }
+
+            const { data, error } = await query;
+            if (error) return;
+            const tbody = document.querySelector('#tabelaRemessas tbody');
+            if (!data || data.length === 0) { tbody.innerHTML = '<tr><td colspan="5">Nenhuma remessa encontrada.</td></tr>'; return; }
+
+            tbody.innerHTML = data.map(r => {
+                const c = r.caixa;
+                const localizacao = c?.palete_id ? `Palete: ${c.palete_id}` : (c?.endereco ? `Rua: ${c.endereco.rua}` : 'N/A');
+                const nomeLocal = c?.palete?.endereco?.local?.nome || c?.endereco?.local?.nome || 'N/A';
+                return `<tr><td>${r.tracking_number || ''}</td><td>${r.situacao_aduaneira || ''}</td><td>${r.caixa_id || ''}</td><td>${localizacao}</td><td>${nomeLocal}</td></tr>`;
+            }).join('');
+        }
+
+        let caixaAtual = null;
+        async function verificarCaixa() {
+            const idDigitado = document.getElementById('input_caixa_id').value.trim();
+            if (!idDigitado) return;
+            const { data, error } = await supabaseClient.from('caixa').select('id').eq('id', idDigitado).single();
+            if (error || !data) { darFeedback(false, `Caixa ${idDigitado} não encontrada!`); } 
+            else {
+                caixaAtual = idDigitado; 
+                document.getElementById('secao_remessa').style.display = 'block';
+                darFeedback(true, `Caixa ${idDigitado} validada! Pode bipar.`);
+                document.getElementById('input_remessa_id').focus();
+            }
+        }
+
+        async function processarRemessa() {
+            const tracking = document.getElementById('input_remessa_id').value.trim();
+            if (!tracking) return;
+            const { data: existente } = await supabaseClient.from('remessa').select('tracking_number, caixa_id').eq('tracking_number', tracking).maybeSingle();
+            
+            if (existente) {
+                if (existente.caixa_id !== null) { darFeedback(false, `ERRO: Já na Caixa #${existente.caixa_id}!`); } 
+                else {
+                    const { error } = await supabaseClient.from('remessa').update({ caixa_id: caixaAtual }).eq('tracking_number', tracking);
+                    darFeedback(!error, !error ? `SUCESSO! Vinculado.` : "Erro ao atualizar.");
+                }
+            } else {
+                const { error } = await supabaseClient.from('remessa').insert([{ tracking_number: tracking, caixa_id: caixaAtual, situacao_aduaneira: 'PENDENTE', situacao_sistema: 'CRIADO' }]);
+                darFeedback(!error, !error ? `SUCESSO! Criada e vinculada.` : "Erro de inserção.");
+            }
+            document.getElementById('input_remessa_id').value = ''; document.getElementById('input_remessa_id').focus();
+        }
+
+        // ================= RETIRADA =================
+        let containerRetirada = null;
+        async function validarContainerRetirada() {
+            const id = document.getElementById('retirada_container_id').value.trim();
+            const isCaixa = id.startsWith('caixa-');
+            const isPalete = id.startsWith('palete-');
+            if (!isCaixa && !isPalete) return darFeedbackRetirada(false, "ID Inválido.");
+
+            const table = isCaixa ? 'caixa' : 'palete';
+            const { data } = await supabaseClient.from(table).select('id').eq('id', id).single();
+            if (!data) return darFeedbackRetirada(false, "Container não encontrado!");
+
+            containerRetirada = id;
+            document.getElementById('secao_item_retirada').style.display = 'block';
+            darFeedbackRetirada(true, `Container ${id} pronto para retirada.`);
+            document.getElementById('input_item_retirada').focus();
+        }
+
+        async function processarRetirada() {
+            const item = document.getElementById('input_item_retirada').value.trim();
+            if (!item) return;
+            const isRemessa = !item.startsWith('caixa-') && !item.startsWith('palete-');
+            const isCaixa = item.startsWith('caixa-');
+
+            if (isRemessa) {
+                const { error } = await supabaseClient.from('remessa').delete().eq('tracking_number', item);
+                darFeedbackRetirada(!error, !error ? `Remessa ${item} excluída com sucesso!` : "Erro ao excluir remessa.");
+            } else if (isCaixa) {
+                const { error } = await supabaseClient.from('caixa').update({ palete_id: null }).eq('id', item);
+                darFeedbackRetirada(!error, !error ? `Caixa ${item} removida do palete/inventário.` : "Erro ao remover caixa.");
+            } else {
+                darFeedbackRetirada(false, "Tipo de item não identificado.");
+            }
+            document.getElementById('input_item_retirada').value = ''; document.getElementById('input_item_retirada').focus();
+        }
+
+        function darFeedbackRetirada(sucesso, mensagem) {
+            const div = document.getElementById('feedback_retirada');
+            div.style.display = 'block'; div.style.backgroundColor = sucesso ? '#d4edda' : '#f8d7da'; div.style.color = sucesso ? '#155724' : '#721c24';
+            div.innerText = mensagem; tocarSom(sucesso); 
+        }
+
+        // ================= ÁUDIO =================
+        let audioCtx;
+        window.addEventListener('click', () => {
+            if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            if(audioCtx.state === 'suspended') audioCtx.resume();
+        }, { once: true });
+
+        function tocarSom(sucesso) {
+            if (!audioCtx) return;
+            const g = audioCtx.createGain(); g.connect(audioCtx.destination);
+            const t = audioCtx.currentTime;
+            if (sucesso) {
+                const o = audioCtx.createOscillator(); o.connect(g); o.type = 'triangle';
+                o.frequency.setValueAtTime(800, t); o.frequency.exponentialRampToValueAtTime(400, t+0.05);
+                g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.3, t+0.01); g.gain.linearRampToValueAtTime(0, t+0.05);
+                o.start(t); o.stop(t+0.05);
+            } else {
+                const o1 = audioCtx.createOscillator(); const o2 = audioCtx.createOscillator();
+                o1.connect(g); o2.connect(g); o1.type = 'square'; o2.type = 'square';
+                o1.frequency.setValueAtTime(120, t); o2.frequency.setValueAtTime(122, t);
+                g.gain.setValueAtTime(0, t);
+                g.gain.linearRampToValueAtTime(0.15, t+0.01); g.gain.setValueAtTime(0.15, t+0.07); g.gain.linearRampToValueAtTime(0, t+0.08);
+                g.gain.setValueAtTime(0, t+0.12); g.gain.linearRampToValueAtTime(0.15, t+0.13); g.gain.setValueAtTime(0.15, t+0.19); g.gain.linearRampToValueAtTime(0, t+0.20);
+                o1.start(t); o2.start(t); o1.stop(t+0.22); o2.stop(t+0.22);
+            }
+        }
+        function darFeedback(sucesso, msg) {
+            const d = document.getElementById('feedback_visual');
+            d.style.display = 'block'; d.style.backgroundColor = sucesso ? '#d4edda' : '#f8d7da'; d.style.color = sucesso ? '#155724' : '#721c24'; d.innerText = msg;
+            tocarSom(sucesso);
+        }
+
+        window.addEventListener('load', initSupabase);
     </script>
+    <canvas id="barcodeCanvas" style="display:none;"></canvas>
 </body>
 </html>
